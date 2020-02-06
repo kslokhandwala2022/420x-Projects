@@ -1,0 +1,27 @@
+void main() {
+  vec2 p = uv();
+  float color = 0.; 
+  float frequency = 2.;
+  float gain = 1.;
+  float thickness = .015*sin(p.y);
+  float maxy = 0.;
+  float miny = 0.;
+  float groundEffect = 2.;
+  if(p.y > - 0.){
+     groundEffect = cos(p.y);
+  }
+  else{
+      //groundEffect = exp(p.y);
+  }
+  
+  
+
+  for( float i = 0.; i < 10.; i++ ) { 
+    p.y += p.x * tan( p.x * mod(time, 310.) * i) * gain; 
+    color += abs( thickness / p.y );
+    maxy = max(p.x, maxy);
+    miny = min(p.x, miny);
+  }
+
+  gl_FragColor = groundEffect * vec4( color + miny, color - maxy, .6 + color - maxy - abs(miny), 1.0 );
+}
