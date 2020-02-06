@@ -1,3 +1,3 @@
 # 420x-Projects
-##Kaamil Lokhandwala
+## Kaamil Lokhandwala
 Projects for Graphical Simulation of Shaders
