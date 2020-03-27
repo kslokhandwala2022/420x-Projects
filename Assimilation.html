@@ -34,6 +34,8 @@ uniform bool invert0;
 uniform bool invert1;
 uniform bool invert2;
 uniform bool invert3;
+uniform bool diamonds;
+
 
 // simulation texture state, swapped each frame
 uniform sampler2D state;
@@ -111,10 +113,21 @@ void main() {
 
   result = setUp(Driver, pixel);
 
-  result = setPixel(Driver, result, invert0, -1, 0, pixel);
-  result = setPixel(Driver, result, invert1, 1, 0, pixel);
-  result = setPixel(Driver, result, invert2, 0, 1, pixel);
-  result = setPixel(Driver, result, invert3, 0, -1, pixel);
+
+  if(diamonds){
+    result = setPixel(Driver, result, invert0, -1, 0, pixel);
+    result = setPixel(Driver, result, invert1, 1, 0, pixel);
+    result = setPixel(Driver, result, invert2, 0, 1, pixel);
+    result = setPixel(Driver, result, invert3, 0, -1, pixel);
+  }
+  else{
+    result = setPixel(Driver, result, invert0, -1, -1, pixel);
+    result = setPixel(Driver, result, invert1, 1, 1, pixel);
+    result = setPixel(Driver, result, invert2, -1, 1, pixel);
+    result = setPixel(Driver, result, invert3, 1, -1, pixel);
+  }
+ 
+
 
   gl_FragColor = (result);
 
@@ -176,8 +189,10 @@ void main() {
         uTime, uSimulationState,
         textureBack, textureFront,
         dimensions = { width:null, height:null },
-        uDriver, uInvert1, uInvert2, uInvert3, uInvert0, uColorPal;
+        uDriver, uInvert1, uInvert2, uInvert3, uInvert0, uColorPal, uDiamond;
     let speckle = false;
+    let reduceQuality = 2;
+    
 
     window.onload = function() {
         const canvas = document.getElementById( 'gl' )
@@ -215,12 +230,12 @@ void main() {
 
         canvas.onmousedown = function(event){
             //console.debug(event);
-            poke((event.offsetX), canvas.height- (event.offsetY), 255, textureBack);
+            poke((event.offsetX/reduceQuality), (canvas.height- (event.offsetY))/reduceQuality, 255, textureBack);
         }
         canvas.onmousemove = function(event){
             //console.debug(event);
             if (!speckle){
-                poke((event.offsetX), canvas.height- (event.offsetY), 255, textureBack);
+                poke((event.offsetX/reduceQuality), (canvas.height- (event.offsetY))/reduceQuality, 255, textureBack);
             }
         }
         window.onkeydown = function(event){
@@ -234,13 +249,6 @@ void main() {
             }
         }
 
-        /*for( i = 0; i < dimensions.width; i++ ) {
-            for( j = 0; j < dimensions.height; j++ ) {
-                if( Math.random() > .75 ) {
-                    poke( i, j, 255, textureBack )
-                }
-            }
-        }*/
     }
 
     //END NEW CODE
@@ -259,6 +267,7 @@ void main() {
             1, -1,
             1,  1
         ])
+        console.debug(triangles);
 
         // initialize memory for buffer and populate it. Give
         // open gl hint contents will not change dynamically.
@@ -290,7 +299,7 @@ void main() {
         gl.useProgram( drawProgram )
 
         uRes = gl.getUniformLocation( drawProgram, 'resolution' )
-        gl.uniform2f( uRes, gl.drawingBufferWidth, gl.drawingBufferHeight )
+        gl.uniform2f( uRes, gl.drawingBufferWidth*reduceQuality, gl.drawingBufferHeight*reduceQuality )
 
 
         // get position attribute location in shader
@@ -337,6 +346,7 @@ void main() {
         uInvert1 = gl.getUniformLocation( simulationProgram, 'invert1' );
         uInvert2 = gl.getUniformLocation( simulationProgram, 'invert2' );
         uInvert3 = gl.getUniformLocation( simulationProgram, 'invert3' );
+        uDiamond = gl.getUniformLocation( simulationProgram, 'diamonds' );
         uColorPal = gl.getUniformLocation( drawProgram, 'colorPal' );
 
     }
@@ -376,6 +386,7 @@ void main() {
 
     let tweak = new function () {
         this.driver = 1.0;
+        this.diamond = true;
         this.invert0 = false;
         this.invert1 = false;
         this.invert2 = false;
@@ -384,7 +395,7 @@ void main() {
         this.reset = false;
         this.pulse = false;
         this.pulseTime = 10;
-        this.ColorOptions = 3.5;
+        this.ColorOptions = 7.0;
         this.Reset = function () {
             this.reset = true;
         };
@@ -428,10 +439,24 @@ void main() {
             this.reset = false;
             this.pulse = false;
         };
+        this.ReduceQuality = function () {
+            reduceQuality++;
+            gl.useProgram( drawProgram )
+            uRes = gl.getUniformLocation( drawProgram, 'resolution' )
+            gl.uniform2f( uRes, gl.drawingBufferWidth*reduceQuality, gl.drawingBufferHeight*reduceQuality )
+        };
+
+        this.RaiseQuality = function () {
+            reduceQuality--;
+            gl.useProgram( drawProgram )
+            uRes = gl.getUniformLocation( drawProgram, 'resolution' )
+            gl.uniform2f( uRes, gl.drawingBufferWidth*reduceQuality, gl.drawingBufferHeight*reduceQuality )
+        };
 
     }
     let gui = new dat.GUI();
     gui.add(tweak, 'driver', 0.0, 3.0);
+    gui.add(tweak, 'diamond');
     gui.add(tweak, 'invert0');
     gui.add(tweak, 'invert1');
     gui.add(tweak, 'invert2');
@@ -445,6 +470,8 @@ void main() {
     gui.add(tweak, 'GridPreset');
     gui.add(tweak, 'SandPreset');
     gui.add(tweak, 'ColorOptions', 0.0, 7.0);
+    gui.add(tweak, 'ReduceQuality');
+    gui.add(tweak, 'RaiseQuality');
 
 
     // keep track of time via incremental frame counter
@@ -463,6 +490,7 @@ void main() {
         gl.uniform1i(uInvert1, tweak.invert1);
         gl.uniform1i(uInvert2, tweak.invert2);
         gl.uniform1i(uInvert3, tweak.invert3);
+        gl.uniform1i(uDiamond, tweak.diamond);
         if(tweak.reset === true){
             gl.uniform1f(uDriver, 5.0);
             tweak.reset = false;
@@ -515,12 +543,18 @@ void main() {
         // same texture in a single render pass. Because of the swap, we're
         // displaying the state of our simulation ****before**** this render pass (frame)
         gl.bindTexture( gl.TEXTURE_2D, textureFront )
-        // use our drawing (copy) shader
-        gl.useProgram( drawProgram )
+        
 
-        gl.uniform1f(uColorPal, tweak.ColorOptions);
-        // put simulation on screen
-        gl.drawArrays( gl.TRIANGLES, 0, 6 )
+        if(time%1 == 0){
+            // use our drawing (copy) shader
+            gl.useProgram( drawProgram );
+
+            gl.uniform1f(uColorPal, tweak.ColorOptions);
+            // put simulation on screen
+            gl.drawArrays( gl.TRIANGLES, 0, 6 );
+        }
+
+        
     }
 </script>
 
